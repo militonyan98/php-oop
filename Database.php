@@ -2,11 +2,7 @@
 
 	class Database{
         
-        protected $connection;
-        protected $user;
-        protected $name;
-        protected $host;
-        protected $password;
+        private $connection;
         
 		function __construct($host="localhost", $user="root", $password="", $name=""){
             $this->connection = new mysqli($host, $user, $password, $name);
@@ -19,23 +15,25 @@
 		
 		public function select($query){
             $data = $this->connection->prepare($query);
+            //$data->bind_param("is", $id);
             $data->execute();
+            $output = ["error" => false, "msg" => "", "data" => []];
             if($data){
-                while ($row =  mysqli_fetch_assoc($data)) {
-                    $result[] = $row;
-                    return $result; //array
+                while ($row = $data->$this->connection->fetch_assoc()) {
+                    $output["data"][] = $row;
                 }
             }
             else{
-                $this->error("Failed to select from the table: ".$this->connection->connect_error);
+                $output["error"] = true;
+                $output["msg"] = "Failed to select from the table: ".$this->connection->connect_error;
             }
-			
+			return $output;
         }
         
 		public function insert($table, $data){
             $keys = $values = "";
             foreach($data as $key => $value){
-                $keys .= $this->connnection->real_escape_string($key).", "; 
+                //$keys .= $this->connnection->real_escape_string($key).", "; 
                 $values .= "'".$this->connnection->real_escape_string($value)."'".", ";
             }
 
@@ -45,16 +43,14 @@
             $query = "INSERT INTO $table ($keys) VALUES $values";
             $result = $this->connection->prepare($query);
             $result->execute();
-			if($result){
-                return $result;
-            }
-            else{
+			if(!$result){
                 $this->error("Failed to insert into ".$table.": ".$this->conneection->connect_error);
             }
+            return $result;
 
         }
         
-		public function update($table, $data, $where){
+		public function update($table, $data, $where=1){
             $values = "";
             foreach ($data as $key => $value) {
                 $values .= $this->connection->real_escape_string($key)
@@ -69,26 +65,20 @@
             $query = "UPDATE $table SET $values WHERE " .$where;
             $result = $this->connection->prepare($query);
             $result->execute();
-            if($result) {
-                return $result;
-            }else {
+            if(!$result) {
                 $this->error("Failed to update table ".$table.$this->connection->connect_error);
             }
+            return $result;
 		}
 		
-		public function delete($table, $where){
-            $query = "DELETE FROM ".$table;
-            if($where){
-                $query.=" WHERE ".$where;
-            }
+		public function delete($table, $where=1){
+            $query = "DELETE FROM ".$table." WHERE ".$where;
             $result = $this->connection->prepare($query);
             $result->execute();
-            if($result){
-                return $result;
-            }
-            else{
+            if(!$result){
                 $this->error("Failed to delete: ".$this->connection->connect_error);
             }
+            return $result;
         }
         
          private function error($error){
